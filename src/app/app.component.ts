@@ -1,5 +1,6 @@
 import { Component, HostListener } from '@angular/core';
 import { HubConnection, HubConnectionBuilder } from '@aspnet/signalr';
+import { State } from '../app/Types/State';
 
 @Component({
   selector: 'app-root',
@@ -14,7 +15,6 @@ export class AppComponent {
     console.log('Key pressed');
     this.keyPressed(event.key);
   }
-
   private _hubConnection: HubConnection;
 
   constructor() {
@@ -45,28 +45,18 @@ export class AppComponent {
   }
 
   private serverEvents(){
-    this._hubConnection.on('Update', (data: any) => {
+    this._hubConnection.on('Update', (data: State) => {
       console.log(data);
       var canvas = <HTMLCanvasElement>document.getElementById("game-canvas");
       var ctx = canvas.getContext("2d");
 
-      var image = new Image();
-      image.onload = function() {
-        ctx.drawImage(image, 0, 0);
-      };
-      image.src = 'data:image/png;base64,' + data.map.originalImage;
-
-      var image2 = new Image();
-      image2.onload = function() {
-        ctx.drawImage(image2, data.hero.x - 8, data.hero.y);
-      };
-      image2.src = 'data:image/png;base64,' + data.hero.sprite;
-
-      var image3 = new Image();
-      image3.onload = function() {
-        ctx.drawImage(image3, data.npc.x - 8, data.npc.y);
-      };
-      image3.src = 'data:image/png;base64,' + data.npc.sprite;
+      data.gameObjects.forEach(gameObject => {
+        var image = new Image();
+        image.onload = function() {
+          ctx.drawImage(image, gameObject.x, gameObject.y);
+        };
+        image.src = 'data:image/png;base64,' + gameObject.sprite;
+      });
 
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     })
