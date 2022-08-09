@@ -15,12 +15,51 @@ export class AppComponent implements AfterViewInit {
   gameCanvasCtx: CanvasRenderingContext2D | null;
   debugCanvas :HTMLCanvasElement;
   debugCanvasCtx: CanvasRenderingContext2D | null;
+  longPress: boolean;
+  longPressDelay = 200;
+  startEvent: KeyboardEvent;
+  timer: any;
 
-  @HostListener('document:keypress', ['$event'])
+  @HostListener('document:keyup', ['$event'])
+  @HostListener('document:keydown', ['$event'])
   handleKeyboardEvent(event: KeyboardEvent){
-    console.log('Key pressed');
-    this.keyPressed(event.key);
+
+    if(this.longPress){
+      this.keyPressed(event.key);
+    }
+
+    if (this.startEvent == null ||
+      this.startEvent.type != event.type ||
+      this.startEvent.key != event.key) {
+
+      if (this.timer != null) {
+        clearTimeout(this.timer);
+      }
+
+      this.startEvent = event;
+
+      if(event.type == 'keydown') {
+        this.keyPressed(event.key);
+        this.timer = setTimeout(() => {
+          this.longPress = true;
+        }, this.longPressDelay);
+      }
+    }
+
+    if(event.type == 'keyup' && this.longPress){
+      this.longPress = false;
+      this.KeyReleased();
+    }
   }
+
+  keyPressed(key: string) {
+    this._hubConnection.invoke('KeyPressed', key);
+  }
+
+  KeyReleased() {
+    this._hubConnection.invoke('KeyReleased');
+  }
+
   private _hubConnection: HubConnection;
   constructor() {
     this.createConnection();
@@ -36,10 +75,6 @@ export class AppComponent implements AfterViewInit {
 
     window.requestAnimationFrame(() => this.drawGame(this.state));
     window.requestAnimationFrame(() => this.drawDebug(this.state));
-  }
-
-  keyPressed(key: string) {
-    this._hubConnection.invoke('KeyPressed', key);
   }
 
   private createConnection() {
