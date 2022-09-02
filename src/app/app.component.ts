@@ -1,3 +1,4 @@
+import { GameConfig } from './Types/GameConfig';
 import { AfterViewInit, Component, HostListener } from '@angular/core';
 import { HubConnection, HubConnectionBuilder } from '@aspnet/signalr';
 import { State } from '../app/Types/State';
@@ -19,6 +20,7 @@ export class AppComponent implements AfterViewInit {
   longPressDelay = 200;
   startEvent: KeyboardEvent;
   timer: any;
+  gameConfig: GameConfig
 
   @HostListener('document:keyup', ['$event'])
   @HostListener('document:keydown', ['$event'])
@@ -60,6 +62,11 @@ export class AppComponent implements AfterViewInit {
     this._hubConnection.invoke('KeyReleased');
   }
 
+  Init(){
+    this._hubConnection.invoke<GameConfig>('Init')
+      .then(gc => this.gameConfig = gc);
+  }
+
   private _hubConnection: HubConnection;
   constructor() {
     this.createConnection();
@@ -88,6 +95,7 @@ export class AppComponent implements AfterViewInit {
       .start()
       .then(() => {
         console.log('Connected');
+        this.Init();
       })
       .catch(() => {
         setTimeout(() => this.startConnection(), 5000)
@@ -109,16 +117,20 @@ export class AppComponent implements AfterViewInit {
     }
 
     state.gameObjects.forEach(gameObject => {
+      //console.log(gameObject);
       var image = new Image();
       image.src = 'data:image/png;base64,' + gameObject.sprite;
-      this.gameCanvasCtx.drawImage(image, gameObject.x, gameObject.y);
+      this.gameCanvasCtx?.drawImage(image, gameObject.x, gameObject.y);
     });
 
     window.requestAnimationFrame(() => this.drawGame(this.state));
   }
 
   private drawDebug(state: State){
-    this.debugCanvasCtx.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
+    if(!this.gameConfig.debug)
+      return;
+
+    this.debugCanvasCtx?.clearRect(0, 0, this.gameCanvas.width, this.gameCanvas.height);
     if(!state){
       window.requestAnimationFrame(() => this.drawDebug(this.state));
       return;
@@ -130,9 +142,23 @@ export class AppComponent implements AfterViewInit {
     state.gameObjects.forEach(gameObject => {
       this.debugCanvasCtx.fillStyle = '#fff';
       this.debugCanvasCtx.font = '20px Arial';
-      this.debugCanvasCtx.fillText(`${gameObject.name} (X: ${gameObject.x}, Y: ${gameObject.y})`, textX, textY);
+      this.debugCanvasCtx?.fillText(`${gameObject.name} (X: ${gameObject.x}, Y: ${gameObject.y})`, textX, textY);
 
       textY += 24;
+
+      gameObject.collisionBodies?.forEach(c =>
+        {
+          this.gameCanvasCtx.fillStyle = '#fff';
+          this.gameCanvasCtx.font = '10px Arial';
+          this.gameCanvasCtx?.fillText(`${c.id}`, c.minX, c.minY);
+          if(gameObject.hasCollision){
+            this.gameCanvasCtx.fillStyle = 'rgba(225,0,0,0.7)';
+          }
+          else{
+            this.gameCanvasCtx.fillStyle = 'rgba(0,225,0,0.7)';
+          }
+          this.gameCanvasCtx?.fillRect(c.minX, c.minY, c.maxX - c.minX, c.maxY - c.minY)
+        })
     });
 
     textY = 20;
